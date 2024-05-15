@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Request and Parse HTML</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cheerio/1.0.0-rc.10/cheerio.min.js" integrity="sha512-0dZ1BHLv5nU2V0d9Zq6GqjlL5obSg/sFnZ4e3Baen9+CvulZCuP/14JvJSGClXxeh1tQ56lYmiF/HRW0y4pRpw==" crossorigin="anonymous"></script>
+</head>
+<body>
+    <script>
+        async function postRequestAndParseHtml(url, postData) {
+            try {
+                // POSTリクエストを送信
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: postData,
+                    mode: "cors"
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                // 取得したHTMLを解析
+                const html = await response.text();
+                const $ = cheerio.load(html);
+
+                // 任意の <tr> 要素を取得 (例として、全ての <tr> 要素を取得)
+                const trElements = $('tr');
+
+                // 解析結果を格納する配列
+                const results = [];
+
+                // 各 <tr> 要素の子の <td> 要素を抽出
+                trElements.each((index, trElement) => {
+                    const tdTexts = [];
+                    $(trElement).find('td').each((i, tdElement) => {
+                        tdTexts.push($(tdElement).text());
+                    });
+                    results.push(tdTexts);
+                });
+
+                // 解析結果を返す
+                let newresults = {
+                    "goukaku": [],
+                    "kako": []
+                };
+
+                let flug = 0;
+                for (let doko = 0; doko < results.length; doko++) {
+                    const ima = results[doko];
+                    if (flug == 0) {
+                        if (ima.length == 0) { flug++ }
+                    } else if (flug == 1) {
+                        if (ima.length == 0) { flug++ }
+                        else { newresults.goukaku.push(Number(ima[1].slice(0, -2))) }
+                    } else if (flug == 2) {
+                        if (ima.length == 0) { flug++ }
+                    } else if (flug == 3) {
+                        if (ima.length == 0) { flug++ }
+                        else {
+                            let tempzisho = {};
+                            tempzisho["per"] = (Number(ima[0].slice(0, -2)));
+                            tempzisho["sec"] = (Number(ima[1].slice(0, -2)));
+                            tempzisho["time"] = ima[2];
+                            tempzisho["testname"] = ima[3];
+                            newresults.kako.push(tempzisho);
+                        }
+                    }
+                }
+                return newresults;
+
+            } catch (error) {
+                console.error('Error making POST request or parsing HTML:', error);
+                throw error; // エラーが発生した場合は、エラーを再スローして呼び出し元に通知
+            }
+        }
+
+        let num = 1733;
+        // APIエンドポイントURL
+        const apiUrl = 'https://mstdy.com/tec1/index.cgi';
+        // POSTリクエストに含めるデータ
+        let postData = `mode=dispScr&scrfile=..%2Fadm_tec1%2Ftec1%2F07%2F${num}.csv&logName=%E4%B8%AD%E5%B7%9D%E7%A5%90%E9%80%9F&cls=07`;
+
+        // 関数を実行し、結果を処理
+        postRequestAndParseHtml(apiUrl, postData)
+            .then(results => {
+                console.log(results.goukaku);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    </script>
+</body>
+</html>
